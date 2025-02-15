@@ -1,0 +1,25 @@
+/* .container {
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .box-container {
+    width: 350px;
+    height: 450px;
+    background: linear-gradient(to top, rgba(11, 18, 70, 1), rgba(26, 45, 172, 1));
+    border-radius: 40px;
+  }
+  
+  .text {
+    color: white;
+  }
+  
+  .form-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  } */
