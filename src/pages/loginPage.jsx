@@ -1,3 +1,7 @@
+// import React, { useState} from 'react'
+import React from 'react';
+import '../component/css/login.css'
+
 function LoginPage() {
     return (
         <div className="container">
@@ -19,3 +23,5 @@ function LoginPage() {
         </div>
     )
 }
+
+export default LoginPage
