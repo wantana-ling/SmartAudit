@@ -3,17 +3,31 @@ import pic from '../component/asset/p.webp';
 import '../component/css/profile.css';
 
 function ProfilePage() {
-    // สร้างสถานะเพื่อจัดการการเปิด/ปิดของ dropdown
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [selectedServer, setSelectedServer] = useState(null);
 
-    // ฟังก์ชัน toggleDropdown เพื่อเปลี่ยนสถานะของ dropdown
     const toggleDropdown = () => {
         setIsDropdownOpen(!isDropdownOpen);
     };
 
-    // ฟังก์ชันสำหรับปิด dropdown
     const closeDropdown = () => {
         setIsDropdownOpen(false);
+    };
+
+    const handleSelectServer = (server) => {
+        setSelectedServer(server);
+        console.log(`Selected: ${server}`); // Log the selected server, you can remove this log
+    };
+
+    const handleEnterServer = () => {
+        if (selectedServer) {
+            console.log(`Entering ${selectedServer}`); // Handle action for entering the selected server
+            // Example: Redirect to another page or perform an action based on the selected server
+            const serverSlug = selectedServer.toLowerCase().replace(" ", "-");
+            window.location.href = `/server/${serverSlug}`;
+        } else {
+            alert("Please select a server first.");
+        }
     };
 
     return (
@@ -23,22 +37,41 @@ function ProfilePage() {
                     <img src={pic} alt="Profile Picture" />
                 </div>
                 <p className="name">Somwang</p>
-                <p className='position'>Security Operation</p>
+                <p className="position">Security Operation</p>
                 <div className="dropdown">
                     <button onClick={toggleDropdown} className="dropdown-btn">
-                        Select Server<span><i class="bi bi-chevron-down"></i></span>
+                        {selectedServer ? `Selected: ${selectedServer}` : "Select Server"}
+                        <span><i className="bi bi-chevron-down"></i></span>
                     </button>
                     {isDropdownOpen && (
                         <div className="dropdown-menu">
-                            <span onClick={closeDropdown} className="close-btn"><i class="bi bi-x"></i></span>
+                            <span onClick={closeDropdown} className="close-btn"><i className="bi bi-x"></i></span>
                             <div className="servers">
-                                <p>Select <i class="bi bi-chevron-down"></i></p>
-                                <a href="#">Server 1</a>
-                                <a href="#">Server 2</a>
-                                <a href="#">Server 3</a>
+                                <p>Select <i className="bi bi-chevron-down"></i></p>
+                                <a
+                                    href="#"
+                                    onClick={(e) => { e.preventDefault(); handleSelectServer('Server 1'); }}
+                                    className={selectedServer === 'Server 1' ? 'selected' : ''}
+                                >
+                                    Server 1
+                                </a>
+                                <a
+                                    href="#"
+                                    onClick={(e) => { e.preventDefault(); handleSelectServer('Server 2'); }}
+                                    className={selectedServer === 'Server 2' ? 'selected' : ''}
+                                >
+                                    Server 2
+                                </a>
+                                <a
+                                    href="#"
+                                    onClick={(e) => { e.preventDefault(); handleSelectServer('Server 3'); }}
+                                    className={selectedServer === 'Server 3' ? 'selected' : ''}
+                                >
+                                    Server 3
+                                </a>
                             </div>
-                            
-                            <button className='enter-btn'>Enter Server</button>
+
+                            <button className='enter-btn' onClick={handleEnterServer}>Enter Server</button>
                         </div>
                     )}
                 </div>

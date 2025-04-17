@@ -60,12 +60,14 @@ button {
 
 .dropdown-menu {
     position: absolute;
-    top: 0; 
+    top: -80px; 
     left: 0;
+    right: 0;
     background-color: whitesmoke;
     width: 100%; 
     z-index: 0;
     border-radius: 8px;
+    padding: 5px;
 }
 
 .dropdown-menu a {
@@ -94,4 +96,22 @@ button {
     height: 100%;
     justify-content: center;
     align-items: center;
+    margin: 10px;
+}
+.servers p{
+    display: flex;
+    justify-content: space-between;
+    padding-inline: 20px;
+}
+.servers a {
+    cursor: pointer;
+    border-radius: 0;
+}
+.servers a:hover {
+    background-color: #cfcfcf;
+
+}
+.selected {
+    background-color: #cfcfcf; 
+
 }
