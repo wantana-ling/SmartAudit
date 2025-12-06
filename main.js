@@ -7,7 +7,7 @@ const { getDBConnection } = require('./db');
 const os = require('os');
 
 // === CONFIG ===
-const GATEWAY_IP = '192.168.121.195';  // IP ของ Gateway
+const GATEWAY_IP = '210.1.60.188';  // IP ของ Gateway
 // const USERNAME = 'Administrator';
 
 // === Create Window ===
@@ -119,7 +119,7 @@ ipcMain.handle('login-request-with-ip', async (event, { user_id, password, serve
     const response = await axios.post(
       `http://${server_ip}:3000/api/login`,
       {
-        user_id: parseInt(user_id),
+        user_id,
         password
       },
       {
@@ -133,7 +133,7 @@ ipcMain.handle('login-request-with-ip', async (event, { user_id, password, serve
       return {
         success: true,
         message: 'Login successful',
-        user_info: response.data.user_info
+        user_info: response.data.user
       };
     } else {
       return {

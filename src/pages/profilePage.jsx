@@ -26,7 +26,7 @@ function ProfilePage() {
   }, []);
 
   // ✅ ใช้พอร์ต 3000 ให้ตรงกับ backend จริง
-  const API_BASE = 'http://192.168.121.195:3000';
+  const API_BASE = 'http://210.1.60.188:3000';
 
   const handleEnterServer = async () => {
   if (!selectedIP) return alert("Please select IP.");
