@@ -3,12 +3,14 @@ const { exec } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
-const { getDBConnection } = require('./db'); 
+// ❌ ไม่ต้องใช้แล้ว เพราะไม่ต่อ DB ตรง
+// const { getDBConnection } = require('./db');
 const os = require('os');
 
 // === CONFIG ===
 const GATEWAY_IP = '210.1.60.188';  // IP ของ Gateway
-// const USERNAME = 'Administrator';
+const API_PORT = 3000;
+const API_BASE = `http://${GATEWAY_IP}:${API_PORT}`; // ✅ CHANGED
 
 // === Create Window ===
 function createWindow() {
@@ -27,7 +29,7 @@ function createWindow() {
 
 ipcMain.handle('ping-server', async (event, ip) => {
   try {
-    const res = await axios.get(`http://${ip}:3000/ping`);
+    const res = await axios.get(`http://${ip}:${API_PORT}/ping`);
     if (res.data.status === 'ok') {
       return { success: true };
     } else {
@@ -38,15 +40,21 @@ ipcMain.handle('ping-server', async (event, ip) => {
   }
 });
 
+// ✅ ใช้ FastAPI ดึง IP list แทนการต่อ MySQL ตรง
 ipcMain.handle('get-session-ip-list', async () => {
   try {
-    const connection = await getDBConnection(); 
-    const [rows] = await connection.execute('SELECT DISTINCT ip FROM devices'); 
-    const result = rows.map(row => ({ ip: row.ip })); 
-    console.log("Device IPs:", result);
+    // ไปเรียก backend: GET /api/ipserver/list
+    const res = await axios.get(`${API_BASE}/api/ipserver/list`);
+    const rows = res.data;
+
+    const result = (rows || []).map(row => ({
+      ip: row.ip || row.IP || row.address || ''
+    })).filter(item => item.ip);
+
+    console.log('Device IPs from API:', result);
     return result;
   } catch (err) {
-    console.error('DB fetch IP error:', err);
+    console.error('API fetch IP error:', err.message);
     return [];
   }
 });
@@ -84,9 +92,8 @@ ipcMain.handle('connect-rdp', async () => {
         else console.log('Windows RDP launched.');
       });
 
-    }
-    // สำหรับ macOS
-    else if (platform === 'darwin') {
+    } else if (platform === 'darwin') {
+      // สำหรับ macOS
       const rdpContent = `
           full address:s:${GATEWAY_IP}
           prompt for credentials:i:1
@@ -117,16 +124,9 @@ ipcMain.handle('login-request-with-ip', async (event, { user_id, password, serve
     console.log('🌐 Login to:', server_ip, 'User:', user_id);
 
     const response = await axios.post(
-      `http://${server_ip}:3000/api/login`,
-      {
-        user_id,
-        password
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      }
+      `http://${server_ip}:${API_PORT}/api/login`,
+      { user_id, password },
+      { headers: { 'Content-Type': 'application/json' } }
     );
 
     if (response.data.success) {
@@ -155,14 +155,14 @@ ipcMain.handle('check-rdp-installed', async () => {
     if (process.platform === 'win32') {
       const system32Path = path.join(process.env.WINDIR, 'System32', 'mstsc.exe');
       const exists = fs.existsSync(system32Path);
-      console.log("RDP Installed ? :", exists);
+      console.log('RDP Installed ? :', exists);
       return exists;
     }
 
     if (process.platform === 'darwin') {
       const macRdpPath = '/Applications/Microsoft Remote Desktop.app';
       const exists = fs.existsSync(macRdpPath);
-      console.log("RDP Installed ? :", exists);
+      console.log('RDP Installed ? :', exists);
       return exists;
     }
 
@@ -185,5 +185,3 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
-
-

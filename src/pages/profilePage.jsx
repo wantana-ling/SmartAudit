@@ -39,11 +39,17 @@ function ProfilePage() {
     console.log('[ENTER SERVER] Hostname:', hostname, 'Device IP:', deviceIP);
 
     // ✅ ส่งทั้ง host และ ip ไป API
-    const res = await fetch(`${API_BASE}/api/host`, {
+    // const res = await fetch(`${API_BASE}/api/host`, {
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify({ host: hostname, user: username, ip: deviceIP }),
+    // });
+    const res = await fetch(`${API_BASE}/api/ipserver/select-ip`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ host: hostname, user: username, ip: deviceIP }),
+      body: JSON.stringify({ host: selectedIP }),
     });
+
 
     const data = await res.json().catch(() => ({}));
     console.log('[/api/host] response:', data);
