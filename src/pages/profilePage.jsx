@@ -39,24 +39,41 @@ function ProfilePage() {
     console.log('[ENTER SERVER] Hostname:', hostname, 'Device IP:', deviceIP);
 
     // ✅ ส่งทั้ง host และ ip ไป API
-    // const res = await fetch(`${API_BASE}/api/host`, {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ host: hostname, user: username, ip: deviceIP }),
-    // });
-    const res = await fetch(`${API_BASE}/api/ipserver/select-ip`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ host: selectedIP }),
-    });
+    const res1 = await fetch(`${API_BASE}/api/host`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ host: hostname, user: username, ip: deviceIP }),
+});
+
+const data1 = await res1.json();    
 
 
-    const data = await res.json().catch(() => ({}));
-    console.log('[/api/host] response:', data);
+const res2 = await fetch(`${API_BASE}/api/ipserver/select-ip`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ host: selectedIP }),
+});
+
+const data2 = await res2.json();     
+
+console.log("API #1:", data1);
+console.log("API #2:", data2);
+console.log('[RDP PAYLOAD]', { ip: selectedIP, username, password: password ? '***' : '' });
+
 
     // ✅ เปิด RDP ต่อ
     localStorage.setItem('selectedIP', selectedIP);
-    window.electronAPI.connectRDP(username, password, selectedIP);
+
+const rdpRes = await window.electronAPI.connectRDP({
+  ip: selectedIP,
+  username,
+  password,
+});
+
+if (rdpRes?.success === false) {
+  alert(rdpRes.message || 'RDP failed');
+}
+
   } catch (err) {
     console.error('ENTER SERVER failed:', err);
     alert('Failed to enter server (check console).');

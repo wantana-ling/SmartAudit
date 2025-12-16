@@ -1,10 +1,8 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
-const { exec } = require('child_process');
+const { exec, spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
-// ❌ ไม่ต้องใช้แล้ว เพราะไม่ต่อ DB ตรง
-// const { getDBConnection } = require('./db');
 const os = require('os');
 
 // === CONFIG ===
@@ -79,76 +77,103 @@ ipcMain.handle('get-host-info', async () => {
 });
 
 // === เชื่อมต่อ RDP ===
-ipcMain.handle('connect-rdp', async () => {
+ipcMain.handle('connect-rdp', async (event, { ip, username, password }) => {
   try {
-    const platform = process.platform;
-
-    if (platform === 'win32') {
-      // สำหรับ Windows
-      const rdpCommand = `mstsc /v:${GATEWAY_IP}`;
-      console.log('🚀 Opening RDP to Gateway on Windows...');
-      exec(rdpCommand, (err) => {
-        if (err) console.error('Windows RDP error:', err.message);
-        else console.log('Windows RDP launched.');
-      });
-
-    } else if (platform === 'darwin') {
-      // สำหรับ macOS
-      const rdpContent = `
-          full address:s:${GATEWAY_IP}
-          prompt for credentials:i:1
-          screen mode id:i:2
-          desktopwidth:i:1280
-          desktopheight:i:720
-          session bpp:i:32
-          `.trim();
-
-      const filePath = path.join(require('os').tmpdir(), 'temp_connection.rdp');
-      fs.writeFileSync(filePath, rdpContent);
-
-      exec(`open "${filePath}"`, (err) => {
-        if (err) console.error('❌ Failed to open .rdp file:', err.message);
-        else console.log('RDP launched via .rdp file.');
-      });
-    } else {
-      console.error(`Unsupported platform: ${platform}`);
+    if (process.platform !== 'win32') {
+      return { success: false, message: 'Windows only' };
+    }
+    if (!ip || !username || !password) {
+      return { success: false, message: 'Missing ip/username/password' };
     }
 
+    const target = `TERMSRV/${ip}`;
+    const cmdkeyCmd = `cmdkey /generic:${target} /user:${username} /pass:${password}`;
+    console.log('[connect-rdp] payload:', { ip, username, hasPassword: !!password });
+
+    exec(cmdkeyCmd, (err) => {
+      if (err) return console.error('cmdkey error:', err.message);
+
+      const rdpCmd = `mstsc /v:${ip}`;
+      exec(rdpCmd, (err2) => {
+        if (err2) console.error('mstsc error:', err2.message);
+      });
+    });
+
+    return { success: true };
   } catch (err) {
-    console.error('Connect-rdp Error:', err.message);
+    return { success: false, message: err.message };
   }
+  
 });
 
-ipcMain.handle('login-request-with-ip', async (event, { user_id, password, server_ip }) => {
+// ipcMain.handle('connect-rdp', async () => {
+//   try {
+//     const platform = process.platform;
+
+//     if (platform === 'win32') {
+//       // สำหรับ Windows
+//       const rdpCommand = `mstsc /v:${GATEWAY_IP}`;
+//       console.log('🚀 Opening RDP to Gateway on Windows...');
+//       exec(rdpCommand, (err) => {
+//         if (err) console.error('Windows RDP error:', err.message);
+//         else console.log('Windows RDP launched.');
+//       });
+
+//     } else if (platform === 'darwin') {
+//       // สำหรับ macOS
+//       const rdpContent = `
+//           full address:s:${GATEWAY_IP}
+//           prompt for credentials:i:1
+//           screen mode id:i:2
+//           desktopwidth:i:1280
+//           desktopheight:i:720
+//           session bpp:i:32
+//           `.trim();
+
+//       const filePath = path.join(require('os').tmpdir(), 'temp_connection.rdp');
+//       fs.writeFileSync(filePath, rdpContent);
+
+//       exec(`open "${filePath}"`, (err) => {
+//         if (err) console.error('❌ Failed to open .rdp file:', err.message);
+//         else console.log('RDP launched via .rdp file.');
+//       });
+//     } else {
+//       console.error(`Unsupported platform: ${platform}`);
+//     }
+
+//   } catch (err) {
+//     console.error('Connect-rdp Error:', err.message);
+//   }
+// });
+
+ipcMain.handle('login-request-with-ip', async (event, payload) => {
+  console.log('[login-request-with-ip] payload =', payload);
+
+  const { username, password, server_ip } = payload || {};
+
+  if (!username || !password || !server_ip) {
+    return { success: false, message: 'Missing username/password/server_ip' };
+  }
+
   try {
-    console.log('🌐 Login to:', server_ip, 'User:', user_id);
+    console.log('🌐 Login to:', server_ip, 'User:', username);
 
     const response = await axios.post(
       `http://${server_ip}:${API_PORT}/api/login`,
-      { user_id, password },
+      { username, password },
       { headers: { 'Content-Type': 'application/json' } }
     );
 
-    if (response.data.success) {
-      return {
-        success: true,
-        message: 'Login successful',
-        user_info: response.data.user
-      };
-    } else {
-      return {
-        success: false,
-        message: response.data.message
-      };
-    }
+    return { success: true, message: 'Login successful', user_info: response.data };
   } catch (err) {
-    console.error('Login With IP Error:', err.message);
+    console.error('Login With IP Error:', err?.response?.status, err?.response?.data || err.message);
     return {
       success: false,
-      message: 'Cannot connect to server at ' + server_ip
+      message: err?.response?.data?.detail || err?.response?.data?.message || 'Login failed',
     };
   }
 });
+
 
 ipcMain.handle('check-rdp-installed', async () => {
   try {
@@ -183,5 +208,20 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
+  if (process.platform === 'win32') {
+    const { spawn } = require('child_process');
+
+    const p = spawn('cmdkey', ['/delete:TERMSRV/' + GATEWAY_IP]);
+
+    p.on('close', (code) => {
+      if (code === 0) {
+        console.log('++Windows RDP creds deleted++');
+      } else {
+        console.error('!! Failed to delete RDP creds, exit code:', code);
+      }
+    });
+  }
+
   if (process.platform !== 'darwin') app.quit();
 });
+

@@ -21,14 +21,14 @@ const LoginPage = () => {
     const trimmedDomain = domain.trim();
 
     if (!trimmedUsername) {
-      setError("Please enter UserID");
+      setError("Please enter Username");
       return;
     }
 
-    if (authType === 'server' && !/^\d+$/.test(trimmedUsername)) {
-      setError("Please enter your UserID as numbers only.");
-      return;
-    }
+    // if (authType === 'server' && !/^\d+$/.test(trimmedUsername)) {
+    //   setError("Please enter your UserID as numbers only.");
+    //   return;
+    // }
 
     if (!trimmedPassword) {
       setError("Please enter Password");
@@ -53,7 +53,7 @@ const LoginPage = () => {
 
     try {
       const result = await window.electronAPI.loginRequestWithIP({
-        user_id: trimmedUsername,
+        username: trimmedUsername,
         password: trimmedPassword,
         server_ip: selectedIP,
         domain: authType === 'ad' ? trimmedDomain : null,
@@ -129,7 +129,7 @@ const LoginPage = () => {
           )}
           <input
             type="text"
-            placeholder="UserID"
+            placeholder="Username"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             required
