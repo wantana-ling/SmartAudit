@@ -6,9 +6,14 @@ const axios = require('axios');
 const os = require('os');
 
 // === CONFIG ===
-const GATEWAY_IP = '210.1.60.188';  // IP ของ Gateway
+let GATEWAY_IP = null;   // ✅ dynamic
 const API_PORT = 3000;
-const API_BASE = `http://${GATEWAY_IP}:${API_PORT}`; // ✅ CHANGED
+
+// helper
+const getApiBase = () => {
+  if (!GATEWAY_IP) return null;
+  return `http://${GATEWAY_IP}:${API_PORT}`;
+};
 
 // === Create Window ===
 function createWindow() {
@@ -25,29 +30,39 @@ function createWindow() {
   win.loadFile(path.join(__dirname, 'build', 'index.html'));
 }
 
+// ✅ set gateway ip from renderer (Select IP / Login)
+ipcMain.handle('set-gateway-ip', async (event, ip) => {
+  GATEWAY_IP = ip;
+  console.log('✅ Gateway IP set to:', GATEWAY_IP);
+  return { success: true, gateway_ip: GATEWAY_IP };
+});
+
+// (optional) get current gateway ip
+ipcMain.handle('get-gateway-ip', async () => {
+  return { success: true, gateway_ip: GATEWAY_IP };
+});
+
 ipcMain.handle('ping-server', async (event, ip) => {
   try {
     const res = await axios.get(`http://${ip}:${API_PORT}/ping`);
-    if (res.data.status === 'ok') {
-      return { success: true };
-    } else {
-      return { success: false };
-    }
+    return res.data?.status === 'ok' ? { success: true } : { success: false };
   } catch (err) {
     return { success: false, message: err.message };
   }
 });
 
-// ✅ ใช้ FastAPI ดึง IP list แทนการต่อ MySQL ตรง
+// ✅ ใช้ FastAPI ดึง IP list
 ipcMain.handle('get-session-ip-list', async () => {
   try {
-    // ไปเรียก backend: GET /api/ipserver/list
+    const API_BASE = getApiBase();
+    if (!API_BASE) return [];
+
     const res = await axios.get(`${API_BASE}/api/ipserver/list`);
     const rows = res.data;
 
-    const result = (rows || []).map(row => ({
-      ip: row.ip || row.IP || row.address || ''
-    })).filter(item => item.ip);
+    const result = (rows || [])
+      .map(row => ({ ip: row.ip || row.IP || row.address || '' }))
+      .filter(item => item.ip);
 
     console.log('Device IPs from API:', result);
     return result;
@@ -76,19 +91,22 @@ ipcMain.handle('get-host-info', async () => {
   return info;
 });
 
-// === เชื่อมต่อ RDP ===
-ipcMain.handle('connect-rdp', async (event, { ip, username, password }) => {
+// === เชื่อมต่อ RDP (ไปที่ Gateway เสมอ) ===
+ipcMain.handle('connect-rdp', async (event, { username, password }) => {
   try {
     if (process.platform !== 'win32') {
       return { success: false, message: 'Windows only' };
     }
-    if (!ip || !username || !password) {
-      return { success: false, message: 'Missing ip/username/password' };
+    if (!GATEWAY_IP) {
+      return { success: false, message: 'Gateway IP not set' };
+    }
+    if (!username || !password) {
+      return { success: false, message: 'Missing username/password' };
     }
 
     const target = `TERMSRV/${GATEWAY_IP}`;
     const cmdkeyCmd = `cmdkey /generic:${target} /user:${username} /pass:${password}`;
-    console.log('[connect-rdp] payload:', { target, ip, username, hasPassword: !!password });
+    console.log('[connect-rdp] payload:', { target, gateway: GATEWAY_IP, username, hasPassword: !!password });
 
     exec(cmdkeyCmd, (err) => {
       if (err) return console.error('cmdkey error:', err.message);
@@ -103,61 +121,22 @@ ipcMain.handle('connect-rdp', async (event, { ip, username, password }) => {
   } catch (err) {
     return { success: false, message: err.message };
   }
-  
 });
 
-// ipcMain.handle('connect-rdp', async () => {
-//   try {
-//     const platform = process.platform;
-
-//     if (platform === 'win32') {
-//       // สำหรับ Windows
-//       const rdpCommand = `mstsc /v:${GATEWAY_IP}`;
-//       console.log('🚀 Opening RDP to Gateway on Windows...');
-//       exec(rdpCommand, (err) => {
-//         if (err) console.error('Windows RDP error:', err.message);
-//         else console.log('Windows RDP launched.');
-//       });
-
-//     } else if (platform === 'darwin') {
-//       // สำหรับ macOS
-//       const rdpContent = `
-//           full address:s:${GATEWAY_IP}
-//           prompt for credentials:i:1
-//           screen mode id:i:2
-//           desktopwidth:i:1280
-//           desktopheight:i:720
-//           session bpp:i:32
-//           `.trim();
-
-//       const filePath = path.join(require('os').tmpdir(), 'temp_connection.rdp');
-//       fs.writeFileSync(filePath, rdpContent);
-
-//       exec(`open "${filePath}"`, (err) => {
-//         if (err) console.error('❌ Failed to open .rdp file:', err.message);
-//         else console.log('RDP launched via .rdp file.');
-//       });
-//     } else {
-//       console.error(`Unsupported platform: ${platform}`);
-//     }
-
-//   } catch (err) {
-//     console.error('Connect-rdp Error:', err.message);
-//   }
-// });
-
+// ✅ Login (ใช้ server_ip ที่ user เลือก แล้ว set เป็น gateway ip ด้วย)
 ipcMain.handle('login-request-with-ip', async (event, payload) => {
   console.log('[login-request-with-ip] payload =', payload);
 
   const { username, password, server_ip } = payload || {};
-
   if (!username || !password || !server_ip) {
     return { success: false, message: 'Missing username/password/server_ip' };
   }
 
-  try {
-    console.log('🌐 Login to:', server_ip, 'User:', username);
+  // ✅ set gateway ip จากตอน login เลย
+  GATEWAY_IP = server_ip;
+  console.log('✅ Gateway IP set (from login) to:', GATEWAY_IP);
 
+  try {
     const response = await axios.post(
       `http://${server_ip}:${API_PORT}/api/login`,
       { username, password },
@@ -174,7 +153,6 @@ ipcMain.handle('login-request-with-ip', async (event, payload) => {
   }
 });
 
-
 ipcMain.handle('check-rdp-installed', async () => {
   try {
     if (process.platform === 'win32') {
@@ -183,14 +161,6 @@ ipcMain.handle('check-rdp-installed', async () => {
       console.log('RDP Installed ? :', exists);
       return exists;
     }
-
-    if (process.platform === 'darwin') {
-      const macRdpPath = '/Applications/Microsoft Remote Desktop.app';
-      const exists = fs.existsSync(macRdpPath);
-      console.log('RDP Installed ? :', exists);
-      return exists;
-    }
-
     return false;
   } catch (err) {
     console.error('check-rdp-installed error:', err.message);
@@ -209,19 +179,14 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   if (process.platform === 'win32') {
-    const { spawn } = require('child_process');
-
-    const p = spawn('cmdkey', ['/delete:TERMSRV/' + GATEWAY_IP]);
-
-    p.on('close', (code) => {
-      if (code === 0) {
-        console.log('++Windows RDP creds deleted++');
-      } else {
-        console.error('!! Failed to delete RDP creds, exit code:', code);
-      }
-    });
+    if (GATEWAY_IP) {
+      const p = spawn('cmdkey', ['/delete:TERMSRV/' + GATEWAY_IP]);
+      p.on('close', (code) => {
+        if (code === 0) console.log('++Windows RDP creds deleted++');
+        else console.error('!! Failed to delete RDP creds, exit code:', code);
+      });
+    }
   }
 
   if (process.platform !== 'darwin') app.quit();
 });
-

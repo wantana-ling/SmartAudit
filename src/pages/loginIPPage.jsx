@@ -7,6 +7,7 @@ const LoginIPPage = () => {
   const [serverIP, setServerIP] = useState('');
   const [rememberIP, setRememberIP] = useState(false);
   const [error, setError] = useState('');
+  const [isChecking, setIsChecking] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -19,27 +20,51 @@ const LoginIPPage = () => {
 
   const handleSave = async () => {
     const trimmedIP = serverIP.trim();
+
     if (!trimmedIP) {
       setError("Please enter a valid IP address.");
       return;
     }
 
+    // ✅ simple IPv4 validation
+    const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
+    if (!ipRegex.test(trimmedIP)) {
+      setError("Please enter a valid IPv4 address.");
+      return;
+    }
+
+    // ✅ each octet 0-255 validation
+    const parts = trimmedIP.split('.').map(n => Number(n));
+    const validRange = parts.length === 4 && parts.every(n => Number.isInteger(n) && n >= 0 && n <= 255);
+    if (!validRange) {
+      setError("Please enter a valid IPv4 address (0-255).");
+      return;
+    }
+
     try {
+      setIsChecking(true);
+      setError('');
+
       const result = await window.electronAPI.pingServer(trimmedIP);
 
-      if (result.success) {
+      if (result?.success) {
         localStorage.setItem('serverIP', trimmedIP);
+
         if (rememberIP) {
           localStorage.setItem('savedIP', trimmedIP);
         } else {
           localStorage.removeItem('savedIP');
         }
+
         navigate("/login");
       } else {
         setError("❌ Unable to connect to Server.");
       }
     } catch (err) {
+      console.error('ping error:', err);
       setError("❌ An error occurred while connecting to the server.");
+    } finally {
+      setIsChecking(false);
     }
   };
 
@@ -49,16 +74,22 @@ const LoginIPPage = () => {
         <div className="pic-container">
           <img src={securityLogo} alt="securityLogo" />
         </div>
+
         <div className="text">
           <h1>Select IP</h1>
           <p>Smart Audit</p>
         </div>
+
         <div className="text-input">
           <input
             type="text"
             placeholder="Smart audit server IP"
             value={serverIP}
-            onChange={(e) => setServerIP(e.target.value)}
+            onChange={(e) => {
+              setServerIP(e.target.value);
+              setError('');
+            }}
+            disabled={isChecking}
           />
 
           <div className="checkbox-container">
@@ -67,12 +98,16 @@ const LoginIPPage = () => {
               id="rememberIP"
               checked={rememberIP}
               onChange={(e) => setRememberIP(e.target.checked)}
+              disabled={isChecking}
             />
             <label htmlFor="rememberIP">Remember IP</label>
           </div>
 
-          <button onClick={handleSave}>Save</button>
+          <button onClick={handleSave} disabled={isChecking}>
+            {isChecking ? 'Checking...' : 'Save'}
+          </button>
         </div>
+
         {error && <p style={{ color: 'red' }}>{error}</p>}
       </div>
     </div>
