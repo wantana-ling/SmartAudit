@@ -62,16 +62,18 @@ const LoginPage = () => {
 
       if (result.success) {
         // บันทึกข้อมูลก่อน
-        const userInfo = result.user_info;
-        
+        const data = result.user_info || {};
+        const userInfo = data.user || {}; // ✅ ดึง user ที่อยู่ข้างใน
+
+        const first = userInfo.firstname || trimmedUsername;
+
         localStorage.setItem('username', trimmedUsername);
         localStorage.setItem('password', trimmedPassword);
-        localStorage.setItem('firstname', userInfo.firstname);
+        localStorage.setItem('firstname', first);
 
         if (authType === 'ad') {
           localStorage.setItem('domain', trimmedDomain);
         }
-
         // ✅ ตรวจสอบว่าเครื่องมี mstsc หรือไม่
         const rdpExists = await window.electronAPI.checkRdpInstalled();
         console.log("🧐 RDP exists?", rdpExists);

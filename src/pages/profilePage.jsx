@@ -10,7 +10,10 @@ function ProfilePage() {
 
   const username  = localStorage.getItem("username");
   const password  = localStorage.getItem("password");
-  const firstname = localStorage.getItem('firstname') || 'User';
+  const rawFirstname = localStorage.getItem('firstname');
+  const firstname = (!rawFirstname || rawFirstname === 'undefined' || rawFirstname === 'null')
+    ? 'User'
+    : rawFirstname;
 
   useEffect(() => {
     const fetchIPs = async () => {
