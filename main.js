@@ -86,14 +86,14 @@ ipcMain.handle('connect-rdp', async (event, { ip, username, password }) => {
       return { success: false, message: 'Missing ip/username/password' };
     }
 
-    const target = `TERMSRV/${ip}`;
+    const target = `TERMSRV/${GATEWAY_IP}`;
     const cmdkeyCmd = `cmdkey /generic:${target} /user:${username} /pass:${password}`;
-    console.log('[connect-rdp] payload:', { ip, username, hasPassword: !!password });
+    console.log('[connect-rdp] payload:', { target, ip, username, hasPassword: !!password });
 
     exec(cmdkeyCmd, (err) => {
       if (err) return console.error('cmdkey error:', err.message);
 
-      const rdpCmd = `mstsc /v:${ip}`;
+      const rdpCmd = `mstsc /v:${GATEWAY_IP}`;
       exec(rdpCmd, (err2) => {
         if (err2) console.error('mstsc error:', err2.message);
       });
