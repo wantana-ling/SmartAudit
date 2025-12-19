@@ -25,11 +25,6 @@ const LoginPage = () => {
       return;
     }
 
-    // if (authType === 'server' && !/^\d+$/.test(trimmedUsername)) {
-    //   setError("Please enter your UserID as numbers only.");
-    //   return;
-    // }
-
     if (!trimmedPassword) {
       setError("Please enter Password");
       return;
@@ -61,9 +56,8 @@ const LoginPage = () => {
       });
 
       if (result.success) {
-        // บันทึกข้อมูลก่อน
         const data = result.user_info || {};
-        const userInfo = data.user || {}; // ✅ ดึง user ที่อยู่ข้างใน
+        const userInfo = data.user || {}; 
 
         const first = userInfo.firstname || trimmedUsername;
 
@@ -74,11 +68,11 @@ const LoginPage = () => {
         if (authType === 'ad') {
           localStorage.setItem('domain', trimmedDomain);
         }
-        // ✅ ตรวจสอบว่าเครื่องมี mstsc หรือไม่
+
         const rdpExists = await window.electronAPI.checkRdpInstalled();
         console.log("🧐 RDP exists?", rdpExists);
         if (!rdpExists) {
-          alert("Remote Desktop (mstsc.exe) not found. Please install it before continuing.");
+          alert("Remote Desktop not found. Please install it before continuing.");
           return;
         }
 

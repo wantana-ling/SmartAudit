@@ -40,11 +40,11 @@ const LoginIPPage = () => {
         localStorage.setItem('serverIP', trimmedIP);
         navigate("/login");
       } else {
-        setError("❌ Unable to connect to Server.");
+        setError("Unable to connect to Server.");
       }
     } catch (err) {
       console.error('ping error:', err);
-      setError("❌ An error occurred while connecting to the server.");
+      setError("An error occurred while connecting to the server.");
     } finally {
       setIsChecking(false);
     }

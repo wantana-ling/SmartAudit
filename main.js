@@ -5,17 +5,14 @@ const path = require('path');
 const axios = require('axios');
 const os = require('os');
 
-// === CONFIG ===
-let GATEWAY_IP = null;   // ✅ dynamic
+let GATEWAY_IP = null;   
 const API_PORT = 3000;
 
-// helper
 const getApiBase = () => {
   if (!GATEWAY_IP) return null;
   return `http://${GATEWAY_IP}:${API_PORT}`;
 };
 
-// === Create Window ===
 function createWindow() {
   const win = new BrowserWindow({
     width: 500,
@@ -30,14 +27,12 @@ function createWindow() {
   win.loadFile(path.join(__dirname, 'build', 'index.html'));
 }
 
-// ✅ set gateway ip from renderer (Select IP / Login)
 ipcMain.handle('set-gateway-ip', async (event, ip) => {
   GATEWAY_IP = ip;
-  console.log('✅ Gateway IP set to:', GATEWAY_IP);
+  console.log('Gateway IP set to:', GATEWAY_IP);
   return { success: true, gateway_ip: GATEWAY_IP };
 });
 
-// (optional) get current gateway ip
 ipcMain.handle('get-gateway-ip', async () => {
   return { success: true, gateway_ip: GATEWAY_IP };
 });
@@ -51,7 +46,6 @@ ipcMain.handle('ping-server', async (event, ip) => {
   }
 });
 
-// ✅ ใช้ FastAPI ดึง IP list
 ipcMain.handle('get-session-ip-list', async () => {
   try {
     const API_BASE = getApiBase();
@@ -74,7 +68,7 @@ ipcMain.handle('get-session-ip-list', async () => {
 
 ipcMain.handle('get-hostname', async () => {
   const host = os.hostname();
-  console.log('[Electron] Hostname:', host);
+  console.log('Hostname:', host);
   return host;
 });
 
@@ -87,11 +81,10 @@ ipcMain.handle('get-host-info', async () => {
     .map(n => n.address);
 
   const info = { hostname: os.hostname(), ips };
-  console.log('[Electron] Host info:', info);
+  console.log('Host info:', info);
   return info;
 });
 
-// === เชื่อมต่อ RDP (ไปที่ Gateway เสมอ) ===
 ipcMain.handle('connect-rdp', async (event, { username, password }) => {
   try {
     if (process.platform !== 'win32') {
@@ -106,7 +99,7 @@ ipcMain.handle('connect-rdp', async (event, { username, password }) => {
 
     const target = `TERMSRV/${GATEWAY_IP}`;
     const cmdkeyCmd = `cmdkey /generic:${target} /user:${username} /pass:${password}`;
-    console.log('[connect-rdp] payload:', { target, gateway: GATEWAY_IP, username, hasPassword: !!password });
+    console.log('payload : ', { target, gateway: GATEWAY_IP, username, hasPassword: !!password });
 
     exec(cmdkeyCmd, (err) => {
       if (err) return console.error('cmdkey error:', err.message);
@@ -123,18 +116,16 @@ ipcMain.handle('connect-rdp', async (event, { username, password }) => {
   }
 });
 
-// ✅ Login (ใช้ server_ip ที่ user เลือก แล้ว set เป็น gateway ip ด้วย)
 ipcMain.handle('login-request-with-ip', async (event, payload) => {
-  console.log('[login-request-with-ip] payload =', payload);
+  console.log('Login payload : ', payload);
 
   const { username, password, server_ip } = payload || {};
   if (!username || !password || !server_ip) {
     return { success: false, message: 'Missing username/password/server_ip' };
   }
 
-  // ✅ set gateway ip จากตอน login เลย
   GATEWAY_IP = server_ip;
-  console.log('✅ Gateway IP set (from login) to:', GATEWAY_IP);
+  console.log('Gateway IP : ', GATEWAY_IP);
 
   try {
     const response = await axios.post(
@@ -168,7 +159,6 @@ ipcMain.handle('check-rdp-installed', async () => {
   }
 });
 
-// === Electron lifecycle ===
 app.whenReady().then(() => {
   createWindow();
 

@@ -8,12 +8,25 @@ function ProfilePage() {
   const [ipList, setIpList] = useState([]);
   const [selectedIP, setSelectedIP] = useState('');
 
-  const username  = localStorage.getItem("username");
-  const password  = localStorage.getItem("password");
+  const username = localStorage.getItem("username");
+  const password = localStorage.getItem("password");
+
   const rawFirstname = localStorage.getItem('firstname');
-  const firstname = (!rawFirstname || rawFirstname === 'undefined' || rawFirstname === 'null')
-    ? 'User'
-    : rawFirstname;
+  const firstname =
+    (!rawFirstname || rawFirstname === 'undefined' || rawFirstname === 'null')
+      ? 'User'
+      : rawFirstname;
+ 
+  const gatewayIP = localStorage.getItem('serverIP');
+  const API_PORT = 3000;
+  const API_BASE = gatewayIP ? `http://${gatewayIP}:${API_PORT}` : '';
+
+  useEffect(() => {
+    if (!gatewayIP) {
+      alert('Gateway IP not found. Please select IP again.');
+      navigate('/'); 
+    }
+  }, [gatewayIP, navigate]);
 
   useEffect(() => {
     const fetchIPs = async () => {
@@ -28,60 +41,58 @@ function ProfilePage() {
     fetchIPs();
   }, []);
 
-  // ✅ ใช้พอร์ต 3000 ให้ตรงกับ backend จริง
-  const API_BASE = 'http://210.1.60.188:3000';
-
   const handleEnterServer = async () => {
-  if (!selectedIP) return alert("Please select IP.");
-  if (!username || !password) return alert("Missing login credentials.");
+    if (!selectedIP) return alert("Please select IP.");
+    if (!username || !password) return alert("Missing login credentials.");
 
-  try {
-    // ✅ ขอ host + ip จาก Electron
-    const { hostname, ips } = await window.electronAPI.getHostInfo();
-    const deviceIP = ips?.[0] || 'unknown';
-    console.log('[ENTER SERVER] Hostname:', hostname, 'Device IP:', deviceIP);
+    try {
+      const { hostname, ips } = await window.electronAPI.getHostInfo();
+      const deviceIP = ips?.[0] || 'unknown';
 
-    // ✅ ส่งทั้ง host และ ip ไป API
-    const res1 = await fetch(`${API_BASE}/api/host`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ host: hostname, user: username, ip: deviceIP }),
-});
+      console.log('[ENTER SERVER]', {
+        gatewayIP,
+        selectedIP,
+        hostname,
+        deviceIP,
+      });
 
-const data1 = await res1.json();    
+      const res1 = await fetch(`${API_BASE}/api/host`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          host: hostname,
+          user: username,
+          ip: deviceIP,
+        }),
+      });
+      const data1 = await res1.json();
 
+      const res2 = await fetch(`${API_BASE}/api/ipserver/select-ip`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ host: selectedIP }),
+      });
+      const data2 = await res2.json();
 
-const res2 = await fetch(`${API_BASE}/api/ipserver/select-ip`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ host: selectedIP }),
-});
+      console.log("API #1:", data1);
+      console.log("API #2:", data2);
 
-const data2 = await res2.json();     
+      localStorage.setItem('selectedIP', selectedIP);
 
-console.log("API #1:", data1);
-console.log("API #2:", data2);
-console.log('[RDP PAYLOAD]', { ip: selectedIP, username, password: password ? '***' : '' });
+      const rdpRes = await window.electronAPI.connectRDP({
+        username,
+        password,
+      });
 
+      if (rdpRes?.success === false) {
+        alert(rdpRes.message || 'RDP failed');
+      }
 
-    // ✅ เปิด RDP ต่อ
-    localStorage.setItem('selectedIP', selectedIP);
-
-const rdpRes = await window.electronAPI.connectRDP({
-  ip: selectedIP,
-  username,
-  password,
-});
-
-if (rdpRes?.success === false) {
-  alert(rdpRes.message || 'RDP failed');
-}
-
-  } catch (err) {
-    console.error('ENTER SERVER failed:', err);
-    alert('Failed to enter server (check console).');
-  }
-};
+    } catch (err) {
+      console.error('ENTER SERVER failed:', err);
+      alert('Failed to enter server (check console).');
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('username');
@@ -95,6 +106,7 @@ if (rdpRes?.success === false) {
         <div className="profile">
           <img src={pic} alt="Profile" />
         </div>
+
         <p className="name">{firstname}</p>
         <p className="position">Security Operation</p>
 
@@ -114,11 +126,15 @@ if (rdpRes?.success === false) {
         </div>
 
         <div className="server-info">
-          <button className="enter-btn" onClick={handleEnterServer}>ENTER SERVER</button>
+          <button className="enter-btn" onClick={handleEnterServer}>
+            ENTER SERVER
+          </button>
         </div>
 
         <div className="profile-container">
-          <button className="logout-button" onClick={handleLogout}>LOGOUT</button>
+          <button className="logout-button" onClick={handleLogout}>
+            LOGOUT
+          </button>
         </div>
       </div>
     </div>

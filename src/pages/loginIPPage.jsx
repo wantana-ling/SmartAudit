@@ -26,18 +26,16 @@ const LoginIPPage = () => {
       return;
     }
 
-    // ✅ simple IPv4 validation
     const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
     if (!ipRegex.test(trimmedIP)) {
       setError("Please enter a valid IPv4 address.");
       return;
     }
 
-    // ✅ each octet 0-255 validation
     const parts = trimmedIP.split('.').map(n => Number(n));
     const validRange = parts.length === 4 && parts.every(n => Number.isInteger(n) && n >= 0 && n <= 255);
     if (!validRange) {
-      setError("Please enter a valid IPv4 address (0-255).");
+      setError("Please enter a valid IPv4 address.");
       return;
     }
 
@@ -58,11 +56,11 @@ const LoginIPPage = () => {
 
         navigate("/login");
       } else {
-        setError("❌ Unable to connect to Server.");
+        setError("Unable to connect to Server.");
       }
     } catch (err) {
       console.error('ping error:', err);
-      setError("❌ An error occurred while connecting to the server.");
+      setError("An error occurred while connecting to the server.");
     } finally {
       setIsChecking(false);
     }
@@ -83,7 +81,7 @@ const LoginIPPage = () => {
         <div className="text-input">
           <input
             type="text"
-            placeholder="Smart audit server IP"
+            placeholder="Smartaudit server IP"
             value={serverIP}
             onChange={(e) => {
               setServerIP(e.target.value);
